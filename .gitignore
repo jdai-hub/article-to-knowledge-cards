@@ -17,3 +17,8 @@ venv/
 
 # Local sample output, kept out of the published repository
 /VAST-Data/
+
+# GUI build artifacts
+/dist/
+/app/icon.png
+/app/icon.iconset/

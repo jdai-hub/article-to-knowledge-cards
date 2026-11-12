@@ -1,6 +1,6 @@
 ---
 name: make-knowledge-cards
-description: Turn a pasted article or a local Markdown/TXT file into 5-8 atomic knowledge cards and export each card as a separate PNG image in a keyword-named folder. Each card has a title, core knowledge, concise explanation, and an example or self-test question. Use when the user asks for knowledge cards, study cards, learning cards, 知识卡片, 学习卡片, 文章拆卡, or to turn an article into cards or card images. Supports pasted text and local .md/.txt files only; not for web scraping, PDF, Anki export, or GUI generation.
+description: Turn a pasted article or a local Markdown/TXT file into 5-8 atomic knowledge cards and export each card as a separate PNG image in a keyword-named folder. Each card has a title, core knowledge, concise explanation, and an example or self-test question. Use when the user asks for knowledge cards, study cards, learning cards, 知识卡片, 学习卡片, 文章拆卡, or to turn an article into cards or card images. Supports pasted text and local .md/.txt files only; not for web scraping, PDF, or Anki export.
 ---
 
 # Make Knowledge Cards
@@ -18,8 +18,11 @@ description: Turn a pasted article or a local Markdown/TXT file into 5-8 atomic 
 - 文件不存在、为空或无法读取时，说明原因并请用户重新提供，不要继续生成。
 
 **不支持**
-- 网页抓取、PDF、Anki 导出、图形界面。
+- 网页抓取、PDF、Anki 导出。
 - 遇到 URL 或 PDF 时，用一句话说明暂不支持，并请用户粘贴正文或提供 `.md` / `.txt` 文件。
+
+**图形界面**
+- 本 Skill 本身是文本流程。仓库中的 `app/` 提供一个调用本 Skill 的 macOS 图形界面，详见 README；界面不改变上述输入边界。
 
 **语言**
 - 卡片默认使用与原文相同的语言。

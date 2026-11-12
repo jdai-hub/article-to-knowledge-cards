@@ -2,6 +2,8 @@
 
 把一个 Agent Skill 装进你的助手：把粘贴的文章或本地 Markdown/TXT 文件，提炼成 **5～8 张知识卡片**，并在项目根目录下按核心关键词建立目录，把每张卡片导出为独立的 PNG 图片。
 
+macOS 用户也可以直接双击 `文章转卡片.app`，粘贴文章后点一个按钮完成转换，不需要命令行。
+
 每张卡片包含：
 
 - **标题**
@@ -28,9 +30,16 @@ skills/make-knowledge-cards/
 └── scripts/
     ├── render_cards.py
     └── requirements.txt
+
+app/                       # macOS 图形界面
+├── card_app.py
+├── icon.py
+└── build_app.sh
+
+dist/文章转卡片.app         # 构建产物，不提交
 ```
 
-只包含一个用于渲染 PNG 的脚本，没有其他多余脚本。
+Skill 本身只包含一个用于渲染 PNG 的脚本。`app/` 是独立的图形界面包装，调用同一个 Skill，不参与 Skill 的文本流程。
 
 ## 安装
 
@@ -58,6 +67,30 @@ sudo apt install fonts-noto-cjk
 - Claude Code：`~/.claude/skills/` 或项目内 `.claude/skills/`
 
 重新加载会话后即可使用。
+
+## 图形界面（macOS）
+
+不想用命令行时，可以构建一个可双击的应用：
+
+```bash
+./app/build_app.sh
+```
+
+生成 `dist/文章转卡片.app`，双击打开后：
+
+1. 把文章粘贴到文本框（⌘V），或点「粘贴」
+2. 点「一键生成卡片」
+3. 完成后点「在 Finder 中打开」
+
+转换由本机 `opencode` CLI 调用模型完成，通常需要 30～120 秒，窗口会显示进度，不会卡死。首次使用前需要：
+
+- 已安装并登录 `opencode`（`opencode auth login`）
+- 已安装 `uv`（用于自动选择带 Tk 9 的 Python，并渲染 PNG）
+
+界面上的「更改」可以切换项目目录；应用会把选择保存在
+`~/Library/Application Support/Make Knowledge Cards/config.json`。
+
+应用图标和 `.app` 都是构建产物，不提交到仓库。
 
 ## 使用
 
@@ -145,19 +178,21 @@ sudo apt install fonts-noto-cjk
 - 粘贴的文章正文
 - 本地 `.md` / `.txt` 文件
 - 每张卡片导出为独立 PNG
+- macOS 图形界面（双击 `.app`，粘贴后一键生成）
 
 **暂不支持**
 
 - 网页抓取
 - PDF
 - Anki 导出
-- 图形界面
 
 ## 测试情况
 
 已使用科普说明文、操作指南、英文议论文、信息稀少短文和重复内容较多的文章进行测试，覆盖了卡片数量控制、去重、单卡单知识点、语言跟随原文和不编造信息等要求。
 
 PNG 渲染也已验证：中文 8 张卡片、英文 2 张卡片、关键词目录命名、同名目录自动追加后缀，以及不同内容长度下的自适应高度。
+
+图形界面已做端到端测试：粘贴短文 → 调用 `opencode` → 生成 3 张卡片 → 输出到关键词目录，全程约 27 秒；`.app` 可正常启动，图标、Info.plist 和 ad-hoc 签名均校验通过。
 
 ## License
 
