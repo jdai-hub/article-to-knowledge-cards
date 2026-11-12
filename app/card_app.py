@@ -123,6 +123,96 @@ RESULT_DIR=<输出目录的绝对路径>
 """
 
 
+class FlatButton(tk.Frame):
+    """A flat button drawn with a Label.
+
+    macOS renders ``tk.Button`` with the native theme, which ignores custom
+    background colors. A Frame + Label gives the same flat look everywhere
+    and still supports the small part of the Button API this app uses
+    (``config(state=..., text=...)``).
+    """
+
+    def __init__(
+        self,
+        master,
+        text: str,
+        command,
+        *,
+        font,
+        bg: str,
+        fg: str,
+        hover_bg: str,
+        disabled_bg: str = "#B7C4C1",
+        disabled_fg: str = "#F2F6F5",
+        padx: int = 18,
+        pady: int = 8,
+    ) -> None:
+        super().__init__(master, bg=bg, bd=0, highlightthickness=0, cursor="pointinghand")
+        self._command = command
+        self._enabled = True
+        self._normal_bg = bg
+        self._normal_fg = fg
+        self._hover_bg = hover_bg
+        self._disabled_bg = disabled_bg
+        self._disabled_fg = disabled_fg
+
+        self._label = tk.Label(
+            self,
+            text=text,
+            bg=bg,
+            fg=fg,
+            font=font,
+            padx=padx,
+            pady=pady,
+            cursor="pointinghand",
+        )
+        self._label.pack(fill="both", expand=True)
+
+        for widget in (self, self._label):
+            widget.bind("<Button-1>", self._on_click)
+            widget.bind("<Enter>", self._on_enter)
+            widget.bind("<Leave>", self._on_leave)
+
+    # -- Button-compatible API --
+
+    def configure(self, cnf=None, **kw):
+        if cnf:
+            kw = {**cnf, **kw}
+        text = kw.pop("text", None)
+        state = kw.pop("state", None)
+        if text is not None:
+            self._label.configure(text=text)
+        if state is not None:
+            self.set_enabled(state != "disabled")
+        if kw:
+            super().configure(**kw)
+
+    config = configure
+
+    def set_enabled(self, enabled: bool) -> None:
+        self._enabled = enabled
+        if enabled:
+            self._paint(self._normal_bg, self._normal_fg, "pointinghand")
+        else:
+            self._paint(self._disabled_bg, self._disabled_fg, "arrow")
+
+    def _paint(self, bg: str, fg: str, cursor: str) -> None:
+        self.configure(bg=bg, cursor=cursor)
+        self._label.configure(bg=bg, fg=fg, cursor=cursor)
+
+    def _on_click(self, _event=None) -> None:
+        if self._enabled and self._command is not None:
+            self._command()
+
+    def _on_enter(self, _event=None) -> None:
+        if self._enabled:
+            self._paint(self._hover_bg, self._normal_fg, "pointinghand")
+
+    def _on_leave(self, _event=None) -> None:
+        if self._enabled:
+            self._paint(self._normal_bg, self._normal_fg, "pointinghand")
+
+
 class CardApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
@@ -136,8 +226,10 @@ class CardApp(tk.Tk):
 
         self.title(APP_NAME)
         self.configure(bg=BG)
-        self.geometry("880x760")
-        self.minsize(640, 520)
+        width = 880
+        height = min(760, max(520, self.winfo_screenheight() - 140))
+        self.geometry(f"{width}x{height}")
+        self.minsize(640, min(520, height))
 
         self._build_ui()
         self._center()
@@ -186,18 +278,16 @@ class CardApp(tk.Tk):
             anchor="w",
         )
         self.project_label.pack(side="left", padx=(8, 0), fill="x", expand=True)
-        tk.Button(
+        FlatButton(
             project_row,
             text="更改",
             command=self._choose_project,
             font=(UI_FONT, 10),
             bg=BG,
             fg=ACCENT,
-            activebackground=BG,
-            activeforeground=ACCENT_DARK,
-            relief="flat",
-            bd=0,
-            cursor="pointinghand",
+            hover_bg="#E6EFEC",
+            padx=8,
+            pady=2,
         ).pack(side="right")
 
         hint = tk.Label(
@@ -210,6 +300,105 @@ class CardApp(tk.Tk):
         )
         hint.pack(fill="x", pady=(16, 6))
 
+        # Reserve the bottom controls before the text area. Tk's packer gives
+        # earlier slaves their requested size first, so a tall Text widget
+        # would otherwise push the button row out of the window.
+        bottom = tk.Frame(outer, bg=BG)
+        bottom.pack(side="bottom", fill="x")
+
+        actions = tk.Frame(bottom, bg=BG)
+        actions.pack(fill="x", pady=(16, 0))
+
+        self.btn_generate = FlatButton(
+            actions,
+            text="一键生成卡片",
+            command=self.start,
+            font=(UI_FONT, 14, "bold"),
+            bg=ACCENT,
+            fg="white",
+            hover_bg=ACCENT_DARK,
+            padx=26,
+            pady=10,
+        )
+        self.btn_generate.pack(side="left")
+
+        self.btn_cancel = FlatButton(
+            actions,
+            text="取消",
+            command=self.cancel,
+            font=(UI_FONT, 12),
+            bg="#E7E2D6",
+            fg=INK,
+            hover_bg="#DAD3C3",
+            padx=16,
+            pady=10,
+        )
+
+        FlatButton(
+            actions,
+            text="粘贴",
+            command=self.paste,
+            font=(UI_FONT, 12),
+            bg=BG,
+            fg=ACCENT,
+            hover_bg="#E6EFEC",
+            padx=12,
+            pady=10,
+        ).pack(side="left", padx=(10, 0))
+
+        FlatButton(
+            actions,
+            text="清空",
+            command=self.clear,
+            font=(UI_FONT, 12),
+            bg=BG,
+            fg=MUTED,
+            hover_bg="#EAE6DC",
+            padx=12,
+            pady=10,
+        ).pack(side="left")
+
+        status_frame = tk.Frame(bottom, bg=BG)
+        status_frame.pack(fill="x", pady=(14, 0))
+        self.status = tk.Label(
+            status_frame,
+            text="就绪",
+            bg=BG,
+            fg=MUTED,
+            font=(UI_FONT, 11),
+            anchor="w",
+        )
+        self.status.pack(side="left")
+        self.progress = ttk.Progressbar(
+            status_frame,
+            mode="indeterminate",
+            length=140,
+        )
+
+        self.result_frame = tk.Frame(bottom, bg=BG)
+        self.result_label = tk.Label(
+            self.result_frame,
+            text="",
+            bg=BG,
+            fg=ACCENT_DARK,
+            font=(UI_FONT, 12),
+            anchor="w",
+            justify="left",
+        )
+        self.result_label.pack(side="left")
+        self.btn_open = FlatButton(
+            self.result_frame,
+            text="在 Finder 中打开",
+            command=self.open_output,
+            font=(UI_FONT, 12, "bold"),
+            bg="#E6F4F1",
+            fg=ACCENT_DARK,
+            hover_bg="#D3EBE6",
+            padx=16,
+            pady=8,
+        )
+        self.btn_open.pack(side="right")
+
         text_frame = tk.Frame(
             outer,
             bg=CARD,
@@ -221,6 +410,8 @@ class CardApp(tk.Tk):
             text_frame,
             wrap="word",
             undo=True,
+            width=1,
+            height=1,
             bg=CARD,
             fg=INK,
             insertbackground=INK,
@@ -239,125 +430,16 @@ class CardApp(tk.Tk):
         self.text.focus_set()
         self.text.bind("<Command-Return>", lambda _e: self.start())
 
-        actions = tk.Frame(outer, bg=BG)
-        actions.pack(fill="x", pady=(16, 0))
-
-        self.btn_generate = tk.Button(
-            actions,
-            text="一键生成卡片",
-            command=self.start,
-            font=(UI_FONT, 14, "bold"),
-            bg=ACCENT,
-            fg="white",
-            activebackground=ACCENT_DARK,
-            activeforeground="white",
-            relief="flat",
-            bd=0,
-            padx=26,
-            pady=10,
-            cursor="pointinghand",
-        )
-        self.btn_generate.pack(side="left")
-
-        self.btn_cancel = tk.Button(
-            actions,
-            text="取消",
-            command=self.cancel,
-            font=(UI_FONT, 12),
-            bg="#E7E2D6",
-            fg=INK,
-            activebackground="#DAD3C3",
-            relief="flat",
-            bd=0,
-            padx=16,
-            pady=10,
-            cursor="pointinghand",
-        )
-
-        tk.Button(
-            actions,
-            text="粘贴",
-            command=self.paste,
-            font=(UI_FONT, 12),
-            bg=BG,
-            fg=ACCENT,
-            activebackground=BG,
-            activeforeground=ACCENT_DARK,
-            relief="flat",
-            bd=0,
-            padx=12,
-            pady=10,
-            cursor="pointinghand",
-        ).pack(side="left", padx=(10, 0))
-
-        tk.Button(
-            actions,
-            text="清空",
-            command=self.clear,
-            font=(UI_FONT, 12),
-            bg=BG,
-            fg=MUTED,
-            activebackground=BG,
-            activeforeground=INK,
-            relief="flat",
-            bd=0,
-            padx=12,
-            pady=10,
-            cursor="pointinghand",
-        ).pack(side="left")
-
-        status_frame = tk.Frame(outer, bg=BG)
-        status_frame.pack(fill="x", pady=(14, 0))
-        self.status = tk.Label(
-            status_frame,
-            text="就绪",
-            bg=BG,
-            fg=MUTED,
-            font=(UI_FONT, 11),
-            anchor="w",
-        )
-        self.status.pack(side="left")
-        self.progress = ttk.Progressbar(
-            status_frame,
-            mode="indeterminate",
-            length=140,
-        )
-
-        self.result_frame = tk.Frame(outer, bg=BG)
-        self.result_label = tk.Label(
-            self.result_frame,
-            text="",
-            bg=BG,
-            fg=ACCENT_DARK,
-            font=(UI_FONT, 12),
-            anchor="w",
-            justify="left",
-        )
-        self.result_label.pack(side="left")
-        self.btn_open = tk.Button(
-            self.result_frame,
-            text="在 Finder 中打开",
-            command=self.open_output,
-            font=(UI_FONT, 12, "bold"),
-            bg="#E6F4F1",
-            fg=ACCENT_DARK,
-            activebackground="#D3EBE6",
-            activeforeground=ACCENT_DARK,
-            relief="flat",
-            bd=0,
-            padx=16,
-            pady=8,
-            cursor="pointinghand",
-        )
-        self.btn_open.pack(side="right")
-
         self.bind("<Command-q>", lambda _e: self.destroy())
 
     def _center(self) -> None:
         self.update_idletasks()
         width = self.winfo_width()
         height = self.winfo_height()
-        x = (self.winfo_screenwidth() - width) // 2
+        if width <= 1 or height <= 1:
+            width = self.winfo_reqwidth()
+            height = self.winfo_reqheight()
+        x = max(0, (self.winfo_screenwidth() - width) // 2)
         y = max(0, (self.winfo_screenheight() - height) // 2 - 40)
         self.geometry(f"{width}x{height}+{x}+{y}")
 
