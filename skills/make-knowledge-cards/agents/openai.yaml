@@ -1,0 +1,4 @@
+interface:
+  display_name: "Make Knowledge Cards"
+  short_description: "Turn articles into knowledge cards and PNG images"
+  default_prompt: "Use $make-knowledge-cards to turn this article into 5-8 knowledge cards and PNG images."
